@@ -22,8 +22,8 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
             file_to_open = "File not found: " + self.path[1:]
             self.send_response(404)
         self.end_headers()
-        content = (bytes(file_to_open, 'utf-8') % hash)
-        self.wfile.write(bytes(file_to_open, 'utf-8'))
+        content = (file_to_open % hash)
+        self.wfile.write(bytes(content, 'utf-8'))
 
     def do_GET(self):
         if self.path == '/':
@@ -45,28 +45,33 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
         boundary = content_type.split("=")[1].encode()
         remainbytes = int(self.headers['content-length'])
         line = self.rfile.readline()
-        print(remainbytes)
-        print(line)
         params = {}
         remainbytes -= len(line)
         if not boundary in line:
             return (False, "Content NOT begin with boundary")
         while remainbytes > 0:
             line = self.rfile.readline()
-            print(remainbytes)
-            print(line)
             remainbytes -= len(line)
             matches = re.findall(r'Content-Disposition.*name="(.*)"; filename="(.*)"', line.decode())
             if not matches:
+                matches = re.findall(r'Content-Disposition.*name="(.*)"', line.decode())
                 print("not a file")
+                if matches:
+                    name = matches[0]
+                    line = self.rfile.readline()
+                    remainbytes -= len(line)
+                    line = self.rfile.readline()
+                    remainbytes -= len(line)
+                    params[name] = line
                 continue
+            name, file = matches[0]
+            params[name] = file
             path = self.translate_path(self.path)
-            fn = os.path.join(path, fn[0])
+            fn = os.path.join(path, file)
             line = self.rfile.readline()
             remainbytes -= len(line)
             line = self.rfile.readline()
             remainbytes -= len(line)
-            print(fn)
             try:
                 out = open(fn, 'wb')
             except IOError:
@@ -88,7 +93,7 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
                         else:
                             out.write(preline)
                             preline = line
-        return (True, uploaded_files, "File '%s' upload success!" % ",".join(uploaded_files))
+        return (True, params, "File '%s' upload success!" % ",".join(uploaded_files))
 
 
     def translate_path(self, path):
