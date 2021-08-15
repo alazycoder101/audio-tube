@@ -1,18 +1,19 @@
-import http.server
+from http.server import SimpleHTTPRequestHandler
 import socketserver
+import posixpath
+import urllib.request, urllib.parse, urllib.error
 import os
 import threading
+import re
 import sys
+import logging
 
 HOST = '0.0.0.0'
 PORT = 8000
 
-class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def render(self, file):
+class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
+    def render(self, file, hash={}):
         try:
-            enc = sys.getfilesystemencoding()
-            file_to_open = "File not found: " + self.path[1:]
-            self.send_response(404)
             enc = sys.getfilesystemencoding()
             file_to_open = open(file).read()
             self.send_response(200)
@@ -21,6 +22,7 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             file_to_open = "File not found: " + self.path[1:]
             self.send_response(404)
         self.end_headers()
+        content = (bytes(file_to_open, 'utf-8') % hash)
         self.wfile.write(bytes(file_to_open, 'utf-8'))
 
     def do_GET(self):
@@ -30,55 +32,87 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == '/upload':
-            r, info = self.deal_upload()
-        if not r:
-            self.render('error')
+            r, params, info = self.deal_post_data()
+            if not r:
+                self.render('error')
+            self.render('views/uploaded.html', params)
 
-    def deal_upload(self):
+    def deal_post_data(self):
+        uploaded_files = []
         content_type = self.headers['content-type']
-
         if not content_type:
             return (False, "Content-Type header doesn't contain boundary")
         boundary = content_type.split("=")[1].encode()
         remainbytes = int(self.headers['content-length'])
         line = self.rfile.readline()
+        print(remainbytes)
+        print(line)
+        params = {}
         remainbytes -= len(line)
         if not boundary in line:
             return (False, "Content NOT begin with boundary")
-        line = self.rfile.readline()
-        remainbytes -= len(line)
-        fn = re.findall(r'Content-Disposition.*name="file"; filename="(.*)"', line.decode())
-        if not fn:
-            return (False, "Can't find out file name...")
-        path = self.translate_path(self.path)
-        fn = os.path.join(path, fn[0])
-        line = self.rfile.readline()
-        remainbytes -= len(line)
-        line = self.rfile.readline()
-        remainbytes -= len(line)
-        try:
-            out = open(fn, 'wb')
-        except IOError:
-            return (False, "Can't create file to write, do you have permission to write?")
-                
-        preline = self.rfile.readline()
-        remainbytes -= len(preline)
         while remainbytes > 0:
             line = self.rfile.readline()
+            print(remainbytes)
+            print(line)
             remainbytes -= len(line)
-            if boundary in line:
-                preline = preline[0:-1]
-                if preline.endswith(b'\r'):
-                    preline = preline[0:-1]
-                out.write(preline)
-                out.close()
-                return (True, "File '%s' upload success!" % fn)
+            matches = re.findall(r'Content-Disposition.*name="(.*)"; filename="(.*)"', line.decode())
+            if not matches:
+                print("not a file")
+                continue
+            path = self.translate_path(self.path)
+            fn = os.path.join(path, fn[0])
+            line = self.rfile.readline()
+            remainbytes -= len(line)
+            line = self.rfile.readline()
+            remainbytes -= len(line)
+            print(fn)
+            try:
+                out = open(fn, 'wb')
+            except IOError:
+                return (False, None, "Can't create file to write, do you have permission to write?")
             else:
-                out.write(preline)
-                preline = line
-        return (False, "Unexpected Ends of data.")
+                with out:                    
+                    preline = self.rfile.readline()
+                    remainbytes -= len(preline)
+                    while remainbytes > 0:
+                        line = self.rfile.readline()
+                        remainbytes -= len(line)
+                        if boundary in line:
+                            preline = preline[0:-1]
+                            if preline.endswith(b'\r'):
+                                preline = preline[0:-1]
+                            out.write(preline)
+                            uploaded_files.append(fn)
+                            break
+                        else:
+                            out.write(preline)
+                            preline = line
+        return (True, uploaded_files, "File '%s' upload success!" % ",".join(uploaded_files))
+
+
+    def translate_path(self, path):
+        """Translate a /-separated PATH to the local filename syntax.
+        Components that mean special things to the local file system
+        (e.g. drive or directory names) are ignored.  (XXX They should
+        probably be diagnosed.)
+        """
+        # abandon query parameters
+        path = path.split('?',1)[0]
+        path = path.split('#',1)[0]
+        path = posixpath.normpath(urllib.parse.unquote(path))
+        words = path.split('/')
+        words = [_f for _f in words if _f]
+        path = os.getcwd()
+        for word in words:
+            drive, word = os.path.splitdrive(word)
+            head, word = os.path.split(word)
+            if word in (os.curdir, os.pardir): continue
+            path = os.path.join(path, word)
+        return path
 
 Handler = CustomHTTPRequestHandler
+
 class HTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     def __init__(self, server_address, Handler):
         self.allow_reuse_address = True
@@ -91,3 +125,4 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.start()
     print("serving at port", PORT)
+    logging.basicConfig(level=logging.DEBUG)
