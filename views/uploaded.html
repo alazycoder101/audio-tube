@@ -5,19 +5,26 @@
     </head>
     <body>
         <h1>Uploaded</h1>
-            <ul>
-                <li>
-                    <label>PNG/JPEG image file:</label>
-                    %(uploads[image])s
-                </li>
-                <li>
-                    <label>MP3 audio file:</label>
-                    %(uploads[audio])s
-                </li>
-                <li>
-                    <label>Title(optional):</label>
-                    %(uploads[title])s
-                </li>
-            </ul>
+        <ul>
+            <li>
+                <label>PNG/JPEG image file:</label>
+                %(uploads[image])s
+            </li>
+            <li>
+                <label>MP3 audio file:</label>
+                %(uploads[audio])s
+            </li>
+            <li>
+                <label>Title(optional):</label>
+                %(uploads[title])s
+            </li>
+        </ul>
+        <h1>Converted</h1>
+        <ul>
+            <li>
+                <label>Video file:</label>
+                <a href=%(video)s>Download</a>
+            </li>
+        <ul>
     </body>
 </html>

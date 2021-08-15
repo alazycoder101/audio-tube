@@ -8,8 +8,16 @@ import re
 import sys
 import logging
 
+import subprocess
+
 HOST = '0.0.0.0'
 PORT = 8000
+
+def audio_to_video(file_name, mp3_file):
+    outfile_name = file_name.split('.')[0] + '.mp4'
+    subprocess.call('ffmpeg -i ' + file_name
+                    + ' -i ' + mp3_file + ' -strict -2 -f mp4 '
+                    + outfile_name, shell=True)
 
 class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
     def render(self, file, hash={}):
@@ -35,6 +43,10 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
             r, params, info = self.deal_post_data()
             if not r:
                 self.render('error')
+            image = params['uploads[image]']
+            audio = params['uploads[audio]']
+            params['video'] = audio_to_video(image, audio)
+
             self.render('views/uploaded.html', params)
 
     def deal_post_data(self):
@@ -77,7 +89,7 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
             except IOError:
                 return (False, None, "Can't create file to write, do you have permission to write?")
             else:
-                with out:                    
+                with out:
                     preline = self.rfile.readline()
                     remainbytes -= len(preline)
                     while remainbytes > 0:
