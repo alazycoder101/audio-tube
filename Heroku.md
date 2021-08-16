@@ -1,10 +1,5 @@
 # Heroku
-
-## Container
-```
-heroku config:set POD_PREFIX=* -a bot-recorder
-
-```
+https://audio-tube.herokuapp.com/
 
 ## Scaling
 ```
@@ -16,6 +11,8 @@ heroku run bash -a audio-tube
 ```
 ## Plugins
 ```
+#ffmpeg
+heroku buildpacks:add https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git --app audio-tube
 heroku plugins:install heroku-builds
 heroku builds -a audio-tube
 heroku builds:cancel -a YOUR_HEROKU_APP_NAME
