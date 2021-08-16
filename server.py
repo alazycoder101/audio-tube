@@ -12,7 +12,9 @@ import getopt
 import subprocess
 
 HOST = '0.0.0.0'
-PORT = 8000
+PORT = os.environ.get("PORT")
+if not PORT:
+    PORT = 8000
 
 def audio_to_video(file_name, mp3_file):
     outfile_name = file_name.split('.')[0] + '.mp4'
