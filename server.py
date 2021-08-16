@@ -148,8 +148,9 @@ if __name__ == "__main__":
         if opt in ("-h", "--host"):
             HOST = arg
         elif opt in ("-p", "--port"):
-            PORT = int(arg)
-    server = HTTPServer((HOST, PORT), Handler)
+            PORT = arg
+
+    server = HTTPServer((HOST, int(PORT)), Handler)
     server.server_bind()
     server.server_activate()
     server_thread = threading.Thread(target=server.serve_forever)
