@@ -7,6 +7,7 @@ import threading
 import re
 import sys
 import logging
+import getopt
 
 import subprocess
 
@@ -136,6 +137,16 @@ class HTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         socketserver.TCPServer.__init__(self, server_address, Handler, False)
 
 if __name__ == "__main__":
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "h:p:", ["host=", "port="])
+    except getopt.GetoptError:
+        print('server.py -h <host> -o <port>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt in ("-h", "--host"):
+            HOST = arg
+        elif opt in ("-p", "--port"):
+            PORT = arg
     server = HTTPServer((HOST, PORT), Handler)
     server.server_bind()
     server.server_activate()
